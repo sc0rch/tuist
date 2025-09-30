@@ -12,9 +12,25 @@ defmodule Tuist.Runs do
   alias Tuist.Runs.BuildFile
   alias Tuist.Runs.BuildIssue
   alias Tuist.Runs.BuildTarget
+  alias Tuist.Runs.Test
 
   def get_build(id) do
     Repo.get(Build, id)
+  end
+
+  def get_test(id) do
+    case IngestRepo.get(Test, id) do
+      nil -> {:error, :not_found}
+      test -> {:ok, test}
+    end
+  end
+
+  def list_test_runs(attrs) do
+    {results, meta} = Tuist.ClickHouseFlop.validate_and_run!(Test, attrs, for: Test)
+
+    results = attach_user_account_names(results)
+
+    {results, meta}
   end
 
   def create_build(attrs) do
@@ -206,5 +222,57 @@ defmodule Tuist.Runs do
       _ ->
         nil
     end
+  end
+
+  def create_test(attrs) do
+    # Map status to raw enum value for ClickHouse
+    attrs_with_mapped_status =
+      case Map.get(attrs, :status) do
+        :success -> Map.put(attrs, :status, 0)
+        :failure -> Map.put(attrs, :status, 1)
+        status when status in [0, 1] -> attrs
+        # default to success
+        _ -> Map.put(attrs, :status, 0)
+      end
+
+    case %Test{}
+         |> Test.create_changeset(attrs_with_mapped_status)
+         |> IngestRepo.insert() do
+      {:ok, test} ->
+        # Handle test cases if present
+        if Map.has_key?(attrs, :test_cases) and length(Map.get(attrs, :test_cases, [])) > 0 do
+          create_test_cases(test, Map.get(attrs, :test_cases))
+        end
+
+        # Load project with account from PostgreSQL for PubSub broadcast
+        project = Tuist.Projects.get_project_by_id(test.project_id)
+
+        Tuist.PubSub.broadcast(
+          test,
+          "#{project.account.name}/#{project.name}",
+          :test_created
+        )
+
+        {:ok, test}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
+  end
+
+  defp create_test_cases(_test, _test_cases) do
+    # For now, let's see if we need a separate table for test cases
+    # or if they should be stored as embedded data in the test_runs table
+    # Based on the schema, it seems like test_cases might be stored as JSON
+    :ok
+  end
+
+  defp attach_user_account_names(runs) do
+    # Test runs use account_id instead of user_id
+    # For now, we'll set user_account_name to nil since we don't have user info
+    # This field will be populated by the command events if needed
+    Enum.map(runs, fn run ->
+      Map.put(run, :user_account_name, nil)
+    end)
   end
 end
