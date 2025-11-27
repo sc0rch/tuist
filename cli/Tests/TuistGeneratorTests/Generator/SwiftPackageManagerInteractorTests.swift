@@ -272,6 +272,41 @@ final class SwiftPackageManagerInteractorTests: TuistTestCase {
         XCTAssertTrue(exists)
     }
 
+    func test_generate_skips_package_resolution_when_option_enabled() async throws {
+        // Given
+        let temporaryPath = try temporaryPath()
+        let target = anyTarget(dependencies: [
+            .package(product: "Example", type: .runtime),
+        ])
+        let package = Package.remote(url: "http://some.remote/repo.git", requirement: .exact("branch"))
+        let project = Project.test(
+            path: temporaryPath,
+            name: "Test",
+            settings: .default,
+            targets: [target],
+            packages: [package]
+        )
+        let graph = Graph.test(
+            path: project.path,
+            packages: [project.path: ["Test": package]],
+            dependencies: [GraphDependency.packageProduct(path: project.path, product: "Test", type: .runtime): Set()]
+        )
+        let graphTraverser = GraphTraverser(graph: graph)
+        let workspacePath = temporaryPath.appending(component: "\(project.name).xcworkspace")
+
+        // When
+        try await subject.install(
+            graphTraverser: graphTraverser,
+            workspaceName: workspacePath.basename,
+            configGeneratedProjectOptions: .test(
+                generationOptions: .test(skipPackageResolution: true)
+            )
+        )
+
+        // Then
+        XCTAssertTrue(system.calls.isEmpty)
+    }
+
     // MARK: - Helpers
 
     func anyTarget(dependencies: [TargetDependency] = []) -> Target {

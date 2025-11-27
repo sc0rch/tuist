@@ -47,7 +47,8 @@ public struct TuistGeneratedProjectOptions: Equatable, Hashable {
                 testInsightsDisabled: true,
                 disableSandbox: true,
                 includeGenerateScheme: false,
-                enableCaching: false
+                enableCaching: false,
+                skipPackageResolution: false
             ),
             installOptions: .init(passthroughSwiftPackageManagerArguments: []),
             cacheOptions: CacheOptions(keepSourceTargets: false, profiles: .init([:], default: .onlyExternal))
@@ -66,6 +67,7 @@ extension TuistGeneratedProjectOptions {
         @available(*, deprecated, message: "Use `additionalPackageResolutionArguments` instead.")
         public let resolveDependenciesWithSystemScm: Bool
         public let disablePackageVersionLocking: Bool
+        public let skipPackageResolution: Bool
         @available(*, deprecated, message: "Use `additionalPackageResolutionArguments` instead.")
         public let clonedSourcePackagesDirPath: AbsolutePath?
         public var additionalPackageResolutionArguments: [String]
@@ -92,11 +94,13 @@ extension TuistGeneratedProjectOptions {
             testInsightsDisabled: Bool,
             disableSandbox: Bool,
             includeGenerateScheme: Bool,
-            enableCaching: Bool = false
+            enableCaching: Bool = false,
+            skipPackageResolution: Bool = false
         ) {
             self.resolveDependenciesWithSystemScm = resolveDependenciesWithSystemScm
             self.disablePackageVersionLocking = disablePackageVersionLocking
             self.clonedSourcePackagesDirPath = clonedSourcePackagesDirPath
+            self.skipPackageResolution = skipPackageResolution
             self.additionalPackageResolutionArguments = additionalPackageResolutionArguments
             self.staticSideEffectsWarningTargets = staticSideEffectsWarningTargets
             self.enforceExplicitDependencies = enforceExplicitDependencies
@@ -179,7 +183,8 @@ extension TuistGeneratedProjectOptions {
             testInsightsDisabled: Bool = true,
             disableSandbox: Bool = true,
             includeGenerateScheme: Bool = true,
-            enableCaching: Bool = false
+            enableCaching: Bool = false,
+            skipPackageResolution: Bool = false
         ) -> Self {
             .init(
                 resolveDependenciesWithSystemScm: resolveDependenciesWithSystemScm,
@@ -194,7 +199,8 @@ extension TuistGeneratedProjectOptions {
                 testInsightsDisabled: testInsightsDisabled,
                 disableSandbox: disableSandbox,
                 includeGenerateScheme: includeGenerateScheme,
-                enableCaching: enableCaching
+                enableCaching: enableCaching,
+                skipPackageResolution: skipPackageResolution
             )
         }
     }
